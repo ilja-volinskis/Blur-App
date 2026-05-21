@@ -18,6 +18,7 @@ package com.example.bluromatic.data
 
 import android.content.Context
 import android.net.Uri
+import androidx.work.Constraints
 import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequest
@@ -33,7 +34,6 @@ import com.example.bluromatic.workers.BlurWorker
 import com.example.bluromatic.workers.CleanupWorker
 import com.example.bluromatic.workers.SaveImageToFileWorker
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.mapNotNull
 
 class WorkManagerBluromaticRepository(context: Context) : BluromaticRepository {
@@ -47,22 +47,27 @@ class WorkManagerBluromaticRepository(context: Context) : BluromaticRepository {
      * @param blurLevel The amount to blur the image
      */
     override fun applyBlur(blurLevel: Int) {
-        val continuation = workManager.beginUniqueWork(
+
+        val constraints = Constraints.Builder()
+            .setRequiresBatteryNotLow(true)
+            .build()
+
+        var continuation = workManager.beginUniqueWork(
             IMAGE_MANIPULATION_WORK_NAME,
             ExistingWorkPolicy.REPLACE,
             OneTimeWorkRequest.from(CleanupWorker::class.java)
         )
 
         val blurBuilder = OneTimeWorkRequestBuilder<BlurWorker>()
-
         blurBuilder.setInputData(createInputDataForWorkRequest(blurLevel, imageUri))
+        blurBuilder.setConstraints(constraints)
 
-        continuation.then(blurBuilder.build())
+        continuation = continuation.then(blurBuilder.build())
 
         val save = OneTimeWorkRequestBuilder<SaveImageToFileWorker>()
             .addTag(TAG_OUTPUT)
             .build()
-        continuation.then(save)
+        continuation = continuation.then(save)
 
         continuation.enqueue()
     }
@@ -77,7 +82,9 @@ class WorkManagerBluromaticRepository(context: Context) : BluromaticRepository {
     /**
      * Cancel any ongoing WorkRequests
      * */
-    override fun cancelWork() {}
+    override fun cancelWork() {
+        workManager.cancelUniqueWork(IMAGE_MANIPULATION_WORK_NAME)
+    }
 
     /**
      * Creates the input data bundle which includes the blur level to

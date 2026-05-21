@@ -16,7 +16,6 @@
 
 package com.example.bluromatic.ui
 
-import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
@@ -28,7 +27,6 @@ import com.example.bluromatic.BluromaticApplication
 import com.example.bluromatic.KEY_IMAGE_URI
 import com.example.bluromatic.data.BlurAmountData
 import com.example.bluromatic.data.BluromaticRepository
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -67,6 +65,10 @@ class BlurViewModel(private val bluromaticRepository: BluromaticRepository) : Vi
      */
     fun applyBlur(blurLevel: Int) {
         bluromaticRepository.applyBlur(blurLevel)
+    }
+
+    fun cancelWork() {
+        bluromaticRepository.cancelWork()
     }
 
     /**
