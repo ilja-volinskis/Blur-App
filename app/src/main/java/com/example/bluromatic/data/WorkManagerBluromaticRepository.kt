@@ -19,22 +19,24 @@ package com.example.bluromatic.data
 import android.content.Context
 import android.net.Uri
 import androidx.work.Data
+import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequest
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import com.example.bluromatic.IMAGE_MANIPULATION_WORK_NAME
 import com.example.bluromatic.KEY_BLUR_LEVEL
 import com.example.bluromatic.KEY_IMAGE_URI
+import com.example.bluromatic.TAG_OUTPUT
 import com.example.bluromatic.getImageUri
 import com.example.bluromatic.workers.BlurWorker
 import com.example.bluromatic.workers.CleanupWorker
 import com.example.bluromatic.workers.SaveImageToFileWorker
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.mapNotNull
 
 class WorkManagerBluromaticRepository(context: Context) : BluromaticRepository {
-
-    override val outputWorkInfo: Flow<WorkInfo?> = MutableStateFlow(null)
 
     val workManager = WorkManager.getInstance(context)
 
@@ -45,7 +47,11 @@ class WorkManagerBluromaticRepository(context: Context) : BluromaticRepository {
      * @param blurLevel The amount to blur the image
      */
     override fun applyBlur(blurLevel: Int) {
-        val continuation = workManager.beginWith(OneTimeWorkRequest.from(CleanupWorker::class.java))
+        val continuation = workManager.beginUniqueWork(
+            IMAGE_MANIPULATION_WORK_NAME,
+            ExistingWorkPolicy.REPLACE,
+            OneTimeWorkRequest.from(CleanupWorker::class.java)
+        )
 
         val blurBuilder = OneTimeWorkRequestBuilder<BlurWorker>()
 
@@ -53,11 +59,20 @@ class WorkManagerBluromaticRepository(context: Context) : BluromaticRepository {
 
         continuation.then(blurBuilder.build())
 
-        val save = OneTimeWorkRequestBuilder<SaveImageToFileWorker>().build()
+        val save = OneTimeWorkRequestBuilder<SaveImageToFileWorker>()
+            .addTag(TAG_OUTPUT)
+            .build()
         continuation.then(save)
 
         continuation.enqueue()
     }
+
+    override val outputWorkInfo: Flow<WorkInfo> =
+        workManager
+            .getWorkInfosByTagFlow(TAG_OUTPUT)
+            .mapNotNull {
+                if (it.isNotEmpty()) it.first() else null
+            }
 
     /**
      * Cancel any ongoing WorkRequests
