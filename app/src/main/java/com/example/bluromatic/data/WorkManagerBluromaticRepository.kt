@@ -35,7 +35,7 @@ class WorkManagerBluromaticRepository(context: Context) : BluromaticRepository {
 
     val workManager = WorkManager.getInstance(context)
 
-    private var imageUri: Uri = context.getImageUri()
+    private val imageUri: Uri = context.getImageUri()
 
     /**
      * Create the WorkRequests to apply the blur and save the resulting image
@@ -43,6 +43,8 @@ class WorkManagerBluromaticRepository(context: Context) : BluromaticRepository {
      */
     override fun applyBlur(blurLevel: Int) {
         val blurBuilder = OneTimeWorkRequestBuilder<BlurWorker>()
+
+        blurBuilder.setInputData(createInputDataForWorkRequest(blurLevel, imageUri))
 
         workManager.enqueue(blurBuilder.build())
     }
